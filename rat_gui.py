@@ -13,6 +13,7 @@ from dotenv import load_dotenv
 import time
 import threading
 import json
+import re
 
 # Model Constants
 REASONING_MODEL = "deepseek-r1-distill-llama-70b"
@@ -84,8 +85,8 @@ DEFAULT_CONFIG = {
     "stop": None,             # No custom stop sequences
     "seed": None,             # For reproducible results if needed
     "json_mode": False,       # Enable for structured output
-    "presence_penalty": 0.1,  # Slight penalty to reduce repetition
-    "frequency_penalty": 0.1  # Encourage vocabulary diversity
+    "presence_penalty": 0.3,  # Slight penalty to reduce repetition
+    "frequency_penalty": 0.4  # Encourage vocabulary diversity
 }
 
 class ModelChain:
@@ -114,9 +115,11 @@ class ModelChain:
         self.reasoning_config = {
             "model": DEFAULT_REASONING_MODEL,
             "temperature": 0.6,
-            "max_completion_tokens": 1024,
+            "max_completion_tokens": 4096,
             "top_p": 0.95,
             "stream": True,
+            "presence_penalty": 0.3,  # Slight penalty to reduce repetition
+            "frequency_penalty": 0.4,  # Encourage vocabulary diversity
             "reasoning_format": "raw"
         }
         
@@ -124,18 +127,30 @@ class ModelChain:
         self.base_config = {
             "model": DEFAULT_BASE_MODEL,
             "temperature": 0.6,
-            "max_completion_tokens": 1024,
+            "max_completion_tokens": 4096,
             "top_p": 0.95,
-            "stream": True
+            "stream": True,
+            "presence_penalty": 0.2,  # Slight penalty to reduce repetition
+            "frequency_penalty": 0.3  # Encourage vocabulary diversity
         }
 
     def extract_thinking(self, text):
-        """Extract content between <thinking> tags"""
-        start = text.find("<thinking>")
-        end = text.find("</thinking>")
-        if start != -1 and end != -1:
-            return text[start + 9:end].strip()
-        return text
+        """
+        Extract content between <think> tags and discard everything else.
+        Returns only the clean content between tags, without the tags themselves.
+        """
+        import re
+        
+        # Use regex to find content between <think> tags
+        pattern = r'<think>(.*?)</think>'
+        match = re.search(pattern, text, re.DOTALL)  # re.DOTALL allows matching across newlines
+        
+        if match:
+            # Return only the content inside the tags, stripped of leading/trailing whitespace
+            return match.group(1).strip()
+        
+        # If no tags found, return empty string
+        return ""
 
     def get_deepseek_reasoning(self, user_input):
         """
@@ -151,85 +166,95 @@ class ModelChain:
             # Prepare the reasoning prompt
             messages = [{
                 "role": "user",
-                "content": f"please think of the best way to ask this: {user_input}"
+                "content": f"Please think about how to best answer this question. Wrap your thinking in <think> tags.\nQuestion: {user_input}"
             }]
             
             # Get reasoning from DeepSeek R1
-            response = self.groq_client.chat.completions.create(
+            completion = self.groq_client.chat.completions.create(
+                model=self.current_reasoning_model,
                 messages=messages,
-                **self.reasoning_config
+                temperature=0.5,
+                max_tokens=4096,
+                top_p=0.95,
+                stream=True
             )
 
-            reasoning_content = ""
-            for chunk in response:
+            # Buffer for collecting streamed response
+            response_buffer = ""
+            
+            for chunk in completion:
                 if chunk.choices[0].delta.content:
-                    content = chunk.choices[0].delta.content
-                    reasoning_content += content
-                    if self.show_reasoning:
-                        yield content, 'reasoning'
-
-            # Extract just the thinking part
-            self.last_reasoning = self.extract_thinking(reasoning_content)
-            return self.last_reasoning
-
+                    response_buffer += chunk.choices[0].delta.content
+            
+            # Extract only the content between <think> tags
+            thinking_content = self.extract_thinking(response_buffer)
+            
+            # Return only the extracted thinking content
+            yield {
+                "prompt": messages[0]["content"],
+                "response": thinking_content,  # Only the content between tags
+                "type": "reasoning"
+            }
+            
         except Exception as e:
-            raise Exception(f"Reasoning generation failed: {str(e)}")
+            yield {
+                "prompt": messages[0]["content"],
+                "response": f"Reasoning failed: {str(e)}",
+                "type": "error"
+            }
 
-    def get_groq_response(self, user_input, reasoning):
+    def get_groq_response(self, reasoning):
         """
         Generate response using the reasoning to enhance the model's output.
         
         Args:
-            user_input (str): Original user question
             reasoning (str): Generated reasoning from DeepSeek
             
         Returns:
             str: Generated response
         """
         try:
-            # Format the prompt with reasoning context
-            prompt = {
-                "question": user_input,
-                "reasoning": reasoning,
-                "instruction": "Using the provided reasoning, generate a response to the question."
-            }
-            
+            # Create a prompt that focuses on generating a response based on the reasoning
             messages = [{
+                "role": "system",
+                "content": "You are a helpful AI assistant. Based on the following reasoning, provide a clear and direct response."
+            }, {
                 "role": "user",
-                "content": json.dumps(prompt)
+                "content": reasoning
             }]
             
             # Get enhanced response using reasoning
             completion = self.groq_client.chat.completions.create(
                 model=self.current_base_model,
                 messages=messages,
-                temperature=0.6,
-                max_completion_tokens=1024,
+                temperature=0.7,
+                max_completion_tokens=4096,
                 top_p=0.95,
                 stream=True
             )
 
-            response_content = ""
+            # Buffer for collecting streamed response
+            response_buffer = ""
+            
             for chunk in completion:
                 if chunk.choices[0].delta.content:
-                    content = chunk.choices[0].delta.content
-                    response_content += content
-                    yield content, 'response'
-
-            # Store for context
-            self.messages.append({
-                "role": "user",
-                "content": user_input
-            })
-            self.messages.append({
-                "role": "assistant",
-                "content": response_content
-            })
+                    response_buffer += chunk.choices[0].delta.content
             
-            return response_content
-
+            # Yield both the prompt and full response
+            yield {
+                "prompt": messages[1]["content"],
+                "system_prompt": messages[0]["content"],
+                "response": response_buffer,
+                "type": "response"
+            }
+            
         except Exception as e:
-            raise Exception(f"Response generation failed: {str(e)}")
+            yield {
+                "prompt": messages[1]["content"],
+                "system_prompt": messages[0]["content"],
+                "response": f"Response failed: {str(e)}",
+                "type": "error"
+            }
 
     def set_model(self, model_name):
         """Set the current model"""
@@ -265,7 +290,7 @@ class RatGUI(tk.Tk):
         super().__init__()
         
         # Configure main window
-        self.title("Retrieval Augmented Thinking (RAT)")
+        self.title("guiRAT - Retrieval Augmented Thinking")
         self.geometry("1200x800")
         self.configure(bg='#2b2b2b')  # Dark theme background
         
@@ -273,15 +298,52 @@ class RatGUI(tk.Tk):
         self.model_chain = ModelChain()
         self.running = False
         
+        # Initialize logging
+        self.log_file = "conversation_full.txt"
+        self.setup_logging()
+        
         # Create GUI components
         self.create_widgets()
         
         # Configure window behavior
         self.protocol("WM_DELETE_WINDOW", self.on_closing)
         
+    def setup_logging(self):
+        """
+        Set up the conversation logging system.
+        Creates or appends to conversation_full.txt with a session start marker.
+        """
+        with open(self.log_file, 'a', encoding='utf-8') as f:
+            f.write(f"\n{'='*50}\n")
+            f.write(f"Session Started: {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
+            f.write(f"{'='*50}\n\n")
+
+    def log_conversation(self, content, role, model_name=None, prompt=None, system_prompt=None):
+        """
+        Log conversation entries to the log file.
+        
+        Args:
+            content (str): The message content
+            role (str): The role (user/assistant)
+            model_name (str, optional): The model name if applicable
+            prompt (str, optional): The prompt sent to the model
+            system_prompt (str, optional): The system prompt if applicable
+        """
+        timestamp = time.strftime('%Y-%m-%d %H:%M:%S')
+        with open(self.log_file, 'a', encoding='utf-8') as f:
+            if role == "user":
+                f.write(f"[{timestamp}] USER: {content}\n\n")
+            else:
+                model_info = f" ({model_name})" if model_name else ""
+                f.write(f"[{timestamp}] ASSISTANT{model_info}:\n")
+                if system_prompt:
+                    f.write(f"System Prompt: {system_prompt}\n")
+                if prompt:
+                    f.write(f"Input Prompt: {prompt}\n")
+                f.write(f"Response: {content}\n\n")
+                f.write("-" * 50 + "\n\n")
+
     def create_widgets(self):
-        """Create and arrange GUI components with a modern dark theme"""
-        # Configure styles
         style = ttk.Style()
         style.configure("Custom.TFrame", background="#2b2b2b")
         style.configure("Custom.TButton", 
@@ -292,7 +354,7 @@ class RatGUI(tk.Tk):
                        background="#2b2b2b",
                        foreground="white")
 
-        # Main container
+
         main_frame = ttk.Frame(self, style="Custom.TFrame")
         main_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
@@ -495,10 +557,15 @@ class RatGUI(tk.Tk):
             height=20,
             padx=10,
             pady=10,
-            yscrollcommand=scrollbar.set
+            yscrollcommand=scrollbar.set,
+            cursor="arrow"  # Default cursor
         )
         self.output_text.pack(fill=tk.BOTH, expand=True)
         scrollbar.config(command=self.output_text.yview)
+        
+        # Store collapsed state for reasoning bubbles
+        self.collapsed_bubbles = {}
+        self.next_bubble_id = 0
         
         # Configure text tags for different types of output
         self.output_text.tag_config(
@@ -551,7 +618,7 @@ class RatGUI(tk.Tk):
         
         self.output_text.tag_config(
             'bubble_metadata',
-            foreground='#9e9e9e',  # Gray
+            foreground='#ffd700',  # Gray
             font=('Consolas', 9),
             spacing3=5,
             lmargin1=20,
@@ -571,16 +638,80 @@ class RatGUI(tk.Tk):
             rmargin=10
         )
         
+        self.output_text.tag_config(
+            'clickable_header',
+            font=('Consolas', 10, 'bold'),
+            foreground='#ffd700',  # Gold
+            spacing1=5,
+            lmargin1=10,
+            lmargin2=10
+        )
+        
+        # Configure tag bindings for cursor changes
+        self.output_text.tag_bind('clickable_header', '<Enter>', 
+            lambda e: self.output_text.config(cursor="hand2"))  # Change to hand cursor on hover
+        self.output_text.tag_bind('clickable_header', '<Leave>', 
+            lambda e: self.output_text.config(cursor="arrow"))  # Change back to arrow cursor
+        
+        # Add click handler for collapse/expand
+        self.output_text.tag_bind('collapse_button', '<Button-1>', self.toggle_reasoning_bubble)
+        
         # Make output read-only
         self.output_text.configure(state='disabled')
 
-    def format_bubble_header(self, model_name, tokens, time_taken):
-        """Format the bubble header with model info"""
+    def format_bubble_header(self, model_name, tokens, time_taken, bubble_id=None, is_reasoning=False):
+        """Format the bubble header with model info and collapse button if needed"""
         model_info = MODELS['reasoning' if 'deepseek' in model_name else 'base'][model_name]
-        return (
-            f"┌─ {model_info['name']}\n"
-            f"└─ {tokens} tokens | {time_taken:.2f}s"
-        )
+        
+        if is_reasoning:
+            collapse_emoji = "▼" if not self.collapsed_bubbles.get(bubble_id, True) else "▶"
+            return (
+                f"┌─ {model_info['name']} {collapse_emoji}\n"
+                f"└─ {tokens} tokens | {time_taken:.2f}s"
+            )
+        else:
+            return (
+                f"┌─ {model_info['name']}\n"
+                f"└─ {tokens} tokens | {time_taken:.2f}s"
+            )
+
+    def toggle_reasoning_bubble(self, event):
+        """Toggle the visibility of a reasoning bubble's content"""
+        # Get the index of the clicked position
+        clicked_index = self.output_text.index(f"@{event.x},{event.y}")
+        
+        # Find all tags at this position
+        tags = self.output_text.tag_names(clicked_index)
+        
+        for tag in tags:
+            if tag.startswith('bubble_header_'):
+                bubble_id = int(tag.split('_')[2])
+                
+                self.output_text.configure(state='normal')
+                
+                # Toggle collapsed state
+                is_collapsed = not self.collapsed_bubbles.get(bubble_id, True)
+                self.collapsed_bubbles[bubble_id] = is_collapsed
+                
+                # Get the entire header text
+                header_start = self.output_text.index(f"{tag}.first")
+                header_end = self.output_text.index(f"{tag}.last")
+                header_text = self.output_text.get(header_start, header_end)
+                
+                # Replace the arrow emoji
+                new_header = header_text.replace("▼", "▶") if is_collapsed else header_text.replace("▶", "▼")
+                self.output_text.delete(header_start, header_end)
+                self.output_text.insert(header_start, new_header, tag)
+                
+                # Toggle content visibility
+                content_tag = f'bubble_content_{bubble_id}'
+                if is_collapsed:
+                    self.output_text.tag_config(content_tag, elide=True)
+                else:
+                    self.output_text.tag_config(content_tag, elide=False)
+                
+                self.output_text.configure(state='disabled')
+                break
 
     def append_bubble(self, content, tag, model_name=None, tokens=0, time_taken=0):
         """Append a bubble with labeled frame and metadata"""
@@ -589,13 +720,37 @@ class RatGUI(tk.Tk):
         # Add newline before bubble
         self.output_text.insert(tk.END, "\n")
         
+        # Check if this is a reasoning bubble
+        is_reasoning = tag == 'reasoning_bubble'
+        bubble_id = None
+        
         # Add bubble header if model info is provided
         if model_name:
-            header = self.format_bubble_header(model_name, tokens, time_taken)
-            self.output_text.insert(tk.END, header + "\n", 'bubble_header')
+            if is_reasoning:
+                bubble_id = self.next_bubble_id
+                self.next_bubble_id += 1
+                header_tag = f'bubble_header_{bubble_id}'
+                
+                # Create header with clickable arrow
+                header = self.format_bubble_header(model_name, tokens, time_taken, bubble_id, is_reasoning)
+                
+                # Insert header and make it clickable
+                self.output_text.insert(tk.END, header + "\n", (header_tag, 'clickable_header'))
+                
+                # Bind click event to the header
+                self.output_text.tag_bind(header_tag, '<Button-1>', self.toggle_reasoning_bubble)
+            else:
+                header = self.format_bubble_header(model_name, tokens, time_taken)
+                self.output_text.insert(tk.END, header + "\n", 'bubble_header')
         
         # Add the main content in a bubble
-        self.output_text.insert(tk.END, content + "\n", tag)
+        content_tag = f'bubble_content_{bubble_id}' if bubble_id is not None else tag
+        self.output_text.insert(tk.END, content + "\n", (content_tag, tag))
+        
+        # Set initial state for reasoning bubbles (collapsed by default)
+        if is_reasoning:
+            self.collapsed_bubbles[bubble_id] = True
+            self.output_text.tag_config(content_tag, elide=True)
         
         self.output_text.configure(state='disabled')
         self.output_text.see(tk.END)
@@ -638,6 +793,7 @@ class RatGUI(tk.Tk):
             f"You: {user_input}",
             'user_bubble'
         )
+        self.log_conversation(user_input, "user")
         
         # Start processing thread
         self.running = True
@@ -650,46 +806,81 @@ class RatGUI(tk.Tk):
     def handle_query(self, user_input):
         """Process the query in a separate thread"""
         try:
-            # Get reasoning
-            reasoning_start = time.time()
-            reasoning_generator = self.model_chain.get_deepseek_reasoning(user_input)
-            reasoning = ""
-            for content, tag in reasoning_generator:
-                reasoning += content
+            # Log user input
+            self.log_conversation(user_input, "user")
             
-            reasoning_time = time.time() - reasoning_start
-            if reasoning:
-                if self.model_chain.show_reasoning:
-                    self.append_bubble(
-                        reasoning,
-                        'reasoning_bubble',
-                        self.model_chain.current_reasoning_model,
-                        len(reasoning.split()),  # Approximate token count
-                        reasoning_time
+            # Get reasoning from DeepSeek
+            reasoning_start = time.time()  # Initialize timing
+            async_gen = self.model_chain.get_deepseek_reasoning(user_input)
+            reasoning_content = ""
+            
+            for result in async_gen:
+                if result["type"] == "reasoning":
+                    reasoning_content = result["response"]  # This is already clean, between-tags content
+                    if self.model_chain.show_reasoning:
+                        self.append_bubble(
+                            reasoning_content,  # Show only the clean content
+                            'reasoning_bubble',
+                            self.model_chain.current_reasoning_model,
+                            len(reasoning_content.split()),
+                            time.time() - reasoning_start
+                        )
+                        # Log only the clean content
+                        self.log_conversation(
+                            reasoning_content, 
+                            "assistant",
+                            self.model_chain.current_reasoning_model,
+                            prompt=result["prompt"]
+                        )
+                elif result["type"] == "error":
+                    self.append_bubble(result["response"], "error")
+                    self.log_conversation(
+                        result["response"],
+                        "assistant",
+                        "ERROR",
+                        prompt=result["prompt"]
                     )
+                    return
             
-            # Get response
+            # Get enhanced response using the clean reasoning text
             response_start = time.time()
-            response_generator = self.model_chain.get_groq_response(user_input, reasoning)
-            response = ""
-            for content, tag in response_generator:
-                response += content
-            
-            response_time = time.time() - response_start
-            if response:
-                self.append_bubble(
-                    response,
-                    'response_bubble',
-                    self.model_chain.current_base_model,
-                    len(response.split()),  # Approximate token count
-                    response_time
-                )
+            if reasoning_content:  # Only proceed if we have thinking content
+                response_generator = self.model_chain.get_groq_response(reasoning_content)
+                
+                for result in response_generator:
+                    if result["type"] == "response":
+                        self.append_bubble(
+                            result["response"],
+                            'response_bubble',
+                            self.model_chain.current_base_model,
+                            len(result["response"].split()),
+                            time.time() - response_start
+                        )
+                        self.log_conversation(
+                            result["response"],
+                            "assistant",
+                            self.model_chain.current_base_model,
+                            prompt=reasoning_content,  # Using clean content as prompt
+                            system_prompt=result["system_prompt"]
+                        )
+                    elif result["type"] == "error":
+                        self.append_bubble(result["response"], "error")
+                        self.log_conversation(
+                            result["response"],
+                            "assistant",
+                            "ERROR",
+                            prompt=reasoning_content,
+                            system_prompt=result["system_prompt"]
+                        )
+            else:
+                error_msg = "Error: No thinking content found in model response"
+                self.append_bubble(error_msg, "error")
+                self.log_conversation(error_msg, "assistant", "ERROR")
             
         except Exception as e:
-            self.append_bubble(
-                f"Error: {str(e)}",
-                'error_bubble'
-            )
+            error_msg = f"Error processing query: {str(e)}"
+            self.append_bubble(error_msg, "error")
+            self.log_conversation(error_msg, "assistant", "ERROR")
         finally:
             self.running = False
 
