@@ -1,11 +1,11 @@
 """
-RAT GUI (Retrieval Augmented Thinking) with Tkinter Interface
+RAT GUI (Retrieval Augmented Thinking) with CustomTkinter Interface
 This module implements a GUI version of the RAT system, combining DeepSeek's reasoning 
 capabilities with Groq's high-performance language models.
 """
 
 import tkinter as tk
-from tkinter import ttk, scrolledtext, messagebox
+import customtkinter
 from openai import OpenAI
 from groq import Groq
 import os
@@ -14,6 +14,10 @@ import time
 import threading
 import json
 import re
+
+# Set appearance mode and default color theme
+customtkinter.set_appearance_mode("dark")  # Modes: system (default), light, dark
+customtkinter.set_default_color_theme("blue")  # Themes: blue (default), dark-blue, green
 
 # Model Constants
 REASONING_MODEL = "deepseek-r1-distill-llama-70b"
@@ -49,45 +53,13 @@ MODELS = {
             "type": "base",
             "description": "Medium-sized preview model with 128k context window",
             "context_length": 8192
-        },
-        "llama-3.2-11b-vision-preview": {
-            "name": "Llama 3.2 11B Vision Preview",
-            "type": "base",
-            "description": "Vision-capable preview model with 128k context window",
-            "context_length": 8192
-        },
-        "llama-3.2-90b-vision-preview": {
-            "name": "Llama 3.2 90B Vision Preview",
-            "type": "base",
-            "description": "Large vision-capable preview model with 128k context window",
-            "context_length": 8192
         }
     }
 }
 
 # Default Models
-DEFAULT_REASONING_MODEL = REASONING_MODEL
+DEFAULT_REASONING_MODEL = "deepseek-r1-distill-llama-70b"
 DEFAULT_BASE_MODEL = "llama-3.3-70b-specdec"
-
-# Reasoning Format Options
-REASONING_FORMATS = {
-    "parsed": "Separates reasoning into a dedicated field while keeping the response concise.",
-    "raw": "Includes reasoning within think tags in the content.",
-    "hidden": "Returns only the final answer for maximum efficiency."
-}
-
-# Default Model Configuration
-DEFAULT_CONFIG = {
-    "temperature": 0.6,        # Controls randomness (0.5-0.7 recommended)
-    "max_tokens": 4096,        # Increased for complex reasoning
-    "top_p": 0.95,            # Controls diversity of token selection
-    "stream": True,           # Enable streaming for interactive tasks
-    "stop": None,             # No custom stop sequences
-    "seed": None,             # For reproducible results if needed
-    "json_mode": False,       # Enable for structured output
-    "presence_penalty": 0.3,  # Slight penalty to reduce repetition
-    "frequency_penalty": 0.4  # Encourage vocabulary diversity
-}
 
 class ModelChain:
     """
@@ -109,7 +81,6 @@ class ModelChain:
         self.current_reasoning_model = DEFAULT_REASONING_MODEL
         self.current_base_model = DEFAULT_BASE_MODEL
         self.show_reasoning = True
-        self.reasoning_format = "raw"
         
         # Default configuration for reasoning model
         self.reasoning_config = {
@@ -119,8 +90,7 @@ class ModelChain:
             "top_p": 0.95,
             "stream": True,
             "presence_penalty": 0.3,  # Slight penalty to reduce repetition
-            "frequency_penalty": 0.4,  # Encourage vocabulary diversity
-            "reasoning_format": "raw"
+            "frequency_penalty": 0.4  # Encourage vocabulary diversity
         }
         
         # Default configuration for base model
@@ -256,35 +226,23 @@ class ModelChain:
                 "type": "error"
             }
 
-    def set_model(self, model_name):
-        """Set the current model"""
+    def set_reasoning_model(self, model_name):
+        """Set the current reasoning model"""
         if model_name in MODELS["reasoning"]:
             self.current_reasoning_model = model_name
             self.reasoning_config["model"] = model_name
             return True
-        elif model_name in MODELS["base"]:
+        return False
+
+    def set_base_model(self, model_name):
+        """Set the current base model"""
+        if model_name in MODELS["base"]:
             self.current_base_model = model_name
             self.base_config["model"] = model_name
             return True
         return False
 
-    def set_reasoning_format(self, format_name):
-        """Set the reasoning format"""
-        if format_name in REASONING_FORMATS:
-            self.reasoning_format = format_name
-            self.reasoning_config["reasoning_format"] = format_name
-            return True
-        return False
-
-    def get_model_display_name(self):
-        """Get the display name of the current model"""
-        if self.current_reasoning_model in MODELS["reasoning"]:
-            return MODELS["reasoning"][self.current_reasoning_model]["name"]
-        elif self.current_base_model in MODELS["base"]:
-            return MODELS["base"][self.current_base_model]["name"]
-        return "Unknown Model"
-
-class RatGUI(tk.Tk):
+class RatGUI(customtkinter.CTk):
     """Main GUI application for RAT"""
     def __init__(self):
         super().__init__()
@@ -292,7 +250,6 @@ class RatGUI(tk.Tk):
         # Configure main window
         self.title("guiRAT - Retrieval Augmented Thinking")
         self.geometry("1200x800")
-        self.configure(bg='#2b2b2b')  # Dark theme background
         
         # Initialize model chain and state
         self.model_chain = ModelChain()
@@ -344,234 +301,143 @@ class RatGUI(tk.Tk):
                 f.write("-" * 50 + "\n\n")
 
     def create_widgets(self):
-        style = ttk.Style()
-        style.configure("Custom.TFrame", background="#2b2b2b")
-        style.configure("Custom.TButton", 
-                       padding=6, 
-                       background="#3c3f41",
-                       foreground="white")
-        style.configure("Custom.TLabel", 
-                       background="#2b2b2b",
-                       foreground="white")
-
-
-        main_frame = ttk.Frame(self, style="Custom.TFrame")
-        main_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
-
-        # Control panel at top
-        self.create_control_panel(main_frame)
+        """Create all GUI components"""
+        # Create main container
+        self.main_container = customtkinter.CTkFrame(self)
+        self.main_container.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
         
-        # Output display
-        self.create_output_display(main_frame)
+        # Create control panel at top
+        self.create_control_panel(self.main_container)
         
-        # Input area at bottom
-        self.create_input_area(main_frame)
+        # Create output display in middle
+        self.create_output_display(self.main_container)
+        
+        # Create input area at bottom
+        self.create_input_area(self.main_container)
 
     def create_control_panel(self, parent):
         """Create the control panel with model selection and options"""
-        control_frame = ttk.Frame(parent, style="Custom.TFrame")
-        control_frame.pack(fill=tk.X, pady=(0, 10))
+        # Main control frame
+        control_frame = customtkinter.CTkFrame(parent)
+        control_frame.pack(fill=tk.X, pady=(10, 10))
         
         # Reasoning Model Selection
-        reasoning_frame = ttk.Frame(control_frame, style="Custom.TFrame")
-        reasoning_frame.pack(side=tk.LEFT, padx=(0, 10))
+        reasoning_frame = customtkinter.CTkFrame(control_frame)
+        reasoning_frame.pack(side=tk.LEFT, padx=(10, 10))
         
-        ttk.Label(reasoning_frame, 
-                 text="Reasoning Model:", 
-                 style="Custom.TLabel").pack(side=tk.LEFT)
+        customtkinter.CTkLabel(
+            reasoning_frame, 
+            text="Reasoning:",
+            text_color="white"
+        ).pack(side=tk.LEFT)
         
         self.reasoning_var = tk.StringVar(value=DEFAULT_REASONING_MODEL)
-        reasoning_menu = ttk.OptionMenu(
+        reasoning_menu = customtkinter.CTkOptionMenu(
             reasoning_frame,
-            self.reasoning_var,
-            DEFAULT_REASONING_MODEL,
-            *[model for model in MODELS["reasoning"].keys()],
-            command=self.change_reasoning_model
+            values=[model for model in MODELS["reasoning"].keys()],
+            variable=self.reasoning_var,
+            command=self.change_reasoning_model,
+            fg_color="#2b2b2b",
+            button_color="#404040",
+            button_hover_color="#505050",
+            text_color="white",
+            dynamic_resizing=False,
+            width=150
         )
         reasoning_menu.pack(side=tk.LEFT, padx=(5, 0))
         
         # Base Model Selection
-        base_frame = ttk.Frame(control_frame, style="Custom.TFrame")
+        base_frame = customtkinter.CTkFrame(control_frame)
         base_frame.pack(side=tk.LEFT, padx=10)
         
-        ttk.Label(base_frame, 
-                 text="Base Model:", 
-                 style="Custom.TLabel").pack(side=tk.LEFT)
+        customtkinter.CTkLabel(
+            base_frame, 
+            text="Base:",
+            text_color="white"
+        ).pack(side=tk.LEFT)
         
         self.base_var = tk.StringVar(value=DEFAULT_BASE_MODEL)
-        base_menu = ttk.OptionMenu(
+        base_menu = customtkinter.CTkOptionMenu(
             base_frame,
-            self.base_var,
-            DEFAULT_BASE_MODEL,
-            *[model for model in MODELS["base"].keys()],
-            command=self.change_base_model
+            values=[model for model in MODELS["base"].keys()],
+            variable=self.base_var,
+            command=self.change_base_model,
+            fg_color="#2b2b2b",
+            button_color="#404040",
+            button_hover_color="#505050",
+            text_color="white",
+            dynamic_resizing=False,
+            width=150
         )
         base_menu.pack(side=tk.LEFT, padx=(5, 0))
-        
-        # Add tooltips for model descriptions
-        self.create_model_tooltips(reasoning_menu, base_menu)
-        
-        # Reasoning format selection
-        format_frame = ttk.Frame(control_frame, style="Custom.TFrame")
-        format_frame.pack(side=tk.LEFT, padx=10)
-        
-        ttk.Label(format_frame, 
-                 text="Format:", 
-                 style="Custom.TLabel").pack(side=tk.LEFT)
-        
-        self.format_var = tk.StringVar(value='raw')
-        format_menu = ttk.OptionMenu(
-            format_frame,
-            self.format_var,
-            'raw',
-            *REASONING_FORMATS.keys(),
-            command=self.change_format
-        )
-        format_menu.pack(side=tk.LEFT, padx=(5, 0))
-        
-        # Create tooltip for format menu
-        self.tooltip = None
-        format_menu.bind('<Enter>', self.show_format_tooltip)
-        format_menu.bind('<Leave>', self.hide_format_tooltip)
-        
-        # Reasoning visibility toggle
-        self.reasoning_visibility_var = tk.BooleanVar(value=True)
-        reasoning_btn = ttk.Checkbutton(
-            control_frame,
-            text="Show Reasoning",
-            variable=self.reasoning_visibility_var,
-            command=self.toggle_reasoning,
-            style="Custom.TCheckbutton"
-        )
-        reasoning_btn.pack(side=tk.LEFT, padx=10)
-        
-        # Clear button
-        clear_btn = ttk.Button(
-            control_frame,
-            text="Clear",
-            command=self.clear_output,
-            style="Custom.TButton"
-        )
-        clear_btn.pack(side=tk.RIGHT)
 
-    def create_model_tooltips(self, reasoning_menu, base_menu):
-        """Create tooltips for model descriptions"""
-        def create_tooltip(menu, model_type):
-            def show_tooltip(event):
-                model_var = self.reasoning_var if model_type == "reasoning" else self.base_var
-                model_name = model_var.get()
-                description = MODELS[model_type][model_name]["description"]
-                
-                x = event.x_root + 20
-                y = event.y_root + 10
-                
-                if not hasattr(self, f'{model_type}_tooltip'):
-                    tooltip = tk.Toplevel()
-                    tooltip.wm_overrideredirect(True)
-                    label = ttk.Label(
-                        tooltip,
-                        text=description,
-                        justify=tk.LEFT,
-                        relief=tk.SOLID,
-                        borderwidth=1,
-                        background="#2b2b2b",
-                        foreground="white",
-                        padding=(5, 2)
-                    )
-                    label.pack()
-                    setattr(self, f'{model_type}_tooltip', tooltip)
-                    setattr(self, f'{model_type}_tooltip_label', label)
-                else:
-                    tooltip = getattr(self, f'{model_type}_tooltip')
-                    label = getattr(self, f'{model_type}_tooltip_label')
-                    label.configure(text=description)
-                
-                tooltip.geometry(f"+{x}+{y}")
-                tooltip.deiconify()
-                tooltip.lift()
-                tooltip.attributes('-topmost', True)
-            
-            def hide_tooltip(event):
-                if hasattr(self, f'{model_type}_tooltip'):
-                    getattr(self, f'{model_type}_tooltip').withdraw()
-            
-            menu.bind('<Enter>', show_tooltip)
-            menu.bind('<Leave>', hide_tooltip)
+        # Groq API Key Input
+        api_frame = customtkinter.CTkFrame(control_frame)
+        api_frame.pack(side=tk.LEFT, padx=10)
         
-        create_tooltip(reasoning_menu, "reasoning")
-        create_tooltip(base_menu, "base")
-
-    def show_format_tooltip(self, event):
-        """Show tooltip with format description"""
-        current_format = self.format_var.get()
-        description = REASONING_FORMATS.get(current_format, "")
+        customtkinter.CTkLabel(
+            api_frame, 
+            text="Groq API Key:",
+            text_color="white"
+        ).pack(side=tk.LEFT)
         
-        x = event.x_root + 20
-        y = event.y_root + 10
+        # Get API key from environment
+        initial_api_key = os.getenv("GROQ_API_KEY", "")
+        self.api_key_var = tk.StringVar(value=initial_api_key)
         
-        if not self.tooltip:
-            self.tooltip = tk.Toplevel()
-            self.tooltip.wm_overrideredirect(True)
-            self.tooltip_label = ttk.Label(
-                self.tooltip,
-                text=description,
-                justify=tk.LEFT,
-                relief=tk.SOLID,
-                borderwidth=1,
-                background="#2b2b2b",
-                foreground="white",
-                padding=(5, 2)
-            )
-            self.tooltip_label.pack()
-        else:
-            self.tooltip_label.configure(text=description)
+        # API Key entry with password masking
+        self.api_key_entry = customtkinter.CTkEntry(
+            api_frame,
+            textvariable=self.api_key_var,
+            width=150,
+            show="•",  # Mask the API key
+            fg_color="#2b2b2b",
+            text_color="white",
+            placeholder_text="Enter Groq API Key"
+        )
+        self.api_key_entry.pack(side=tk.LEFT, padx=(5, 0))
         
-        self.tooltip.geometry(f"+{x}+{y}")
-        self.tooltip.deiconify()
-        self.tooltip.lift()
-        self.tooltip.attributes('-topmost', True)
-
-    def hide_format_tooltip(self, event):
-        """Hide the tooltip"""
-        if self.tooltip:
-            self.tooltip.withdraw()
+        # Save button
+        self.save_api_button = customtkinter.CTkButton(
+            api_frame,
+            text="Save",
+            command=self.save_api_key,
+            fg_color="#2b2b2b",
+            hover_color="#404040",
+            corner_radius=5,
+            border_width=1,
+            border_color="#404040",
+            width=50
+        )
+        self.save_api_button.pack(side=tk.LEFT, padx=(5, 0))
 
     def create_output_display(self, parent):
         """Create the output text display area with bubble styling"""
         # Create a frame to hold the output
-        self.output_frame = ttk.Frame(parent, style="Custom.TFrame")
+        self.output_frame = customtkinter.CTkFrame(parent)
         self.output_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
         
-        # Add scrollbar
-        scrollbar = ttk.Scrollbar(self.output_frame)
-        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-        
         # Output text widget with custom styling
-        self.output_text = tk.Text(
+        self.output_text = customtkinter.CTkTextbox(
             self.output_frame,
+            width=1000,
+            height=500,
             wrap=tk.WORD,
-            font=('Consolas', 11),
-            bg='#1e1e1e',
-            fg='white',
-            insertbackground='white',
-            height=20,
-            padx=10,
-            pady=10,
-            yscrollcommand=scrollbar.set,
-            cursor="arrow"  # Default cursor
+            text_color="white",
+            corner_radius=5,
+            fg_color="#1e1e1e"
         )
         self.output_text.pack(fill=tk.BOTH, expand=True)
-        scrollbar.config(command=self.output_text.yview)
         
         # Store collapsed state for reasoning bubbles
         self.collapsed_bubbles = {}
         self.next_bubble_id = 0
         
         # Configure text tags for different types of output
-        self.output_text.tag_config(
+        self.output_text._textbox.tag_config(
             'user_bubble', 
-            background='#2d2d2d',
-            foreground='white',
+            background="#2d2d2d",
+            foreground="white",
             spacing1=10,
             spacing3=10,
             relief=tk.SOLID,
@@ -581,10 +447,10 @@ class RatGUI(tk.Tk):
             rmargin=10
         )
         
-        self.output_text.tag_config(
+        self.output_text._textbox.tag_config(
             'reasoning_bubble',
-            background='#1e3d59',  # Dark blue
-            foreground='#b3e5fc',  # Light blue
+            background="#1e3d59",  # Dark blue
+            foreground="#b3e5fc",  # Light blue
             spacing1=10,
             spacing3=10,
             relief=tk.SOLID,
@@ -594,10 +460,10 @@ class RatGUI(tk.Tk):
             rmargin=10
         )
         
-        self.output_text.tag_config(
+        self.output_text._textbox.tag_config(
             'response_bubble',
-            background='#1b5e20',  # Dark green
-            foreground='#b9f6ca',  # Light green
+            background="#1b5e20",  # Dark green
+            foreground="#b9f6ca",  # Light green
             spacing1=10,
             spacing3=10,
             relief=tk.SOLID,
@@ -607,28 +473,28 @@ class RatGUI(tk.Tk):
             rmargin=10
         )
         
-        self.output_text.tag_config(
+        self.output_text._textbox.tag_config(
             'bubble_header',
-            foreground='#ffd700',  # Gold
+            foreground="#ffd700",  # Gold
             font=('Consolas', 10, 'bold'),
             spacing1=5,
             lmargin1=10,
             lmargin2=10
         )
         
-        self.output_text.tag_config(
+        self.output_text._textbox.tag_config(
             'bubble_metadata',
-            foreground='#ffd700',  # Gray
+            foreground="#ffd700",  # Gold
             font=('Consolas', 9),
             spacing3=5,
             lmargin1=20,
             lmargin2=20
         )
         
-        self.output_text.tag_config(
+        self.output_text._textbox.tag_config(
             'error_bubble',
-            background='#b71c1c',  # Dark red
-            foreground='#ffcdd2',  # Light red
+            background="#b71c1c",  # Dark red
+            foreground="#ffcdd2",  # Light red
             spacing1=10,
             spacing3=10,
             relief=tk.SOLID,
@@ -638,23 +504,23 @@ class RatGUI(tk.Tk):
             rmargin=10
         )
         
-        self.output_text.tag_config(
+        self.output_text._textbox.tag_config(
             'clickable_header',
             font=('Consolas', 10, 'bold'),
-            foreground='#ffd700',  # Gold
+            foreground="#ffd700",  # Gold
             spacing1=5,
             lmargin1=10,
             lmargin2=10
         )
         
         # Configure tag bindings for cursor changes
-        self.output_text.tag_bind('clickable_header', '<Enter>', 
-            lambda e: self.output_text.config(cursor="hand2"))  # Change to hand cursor on hover
-        self.output_text.tag_bind('clickable_header', '<Leave>', 
-            lambda e: self.output_text.config(cursor="arrow"))  # Change back to arrow cursor
+        self.output_text._textbox.tag_bind('clickable_header', '<Enter>', 
+            lambda e: self.output_text._textbox.configure(cursor="hand2"))
+        self.output_text._textbox.tag_bind('clickable_header', '<Leave>', 
+            lambda e: self.output_text._textbox.configure(cursor="arrow"))
         
         # Add click handler for collapse/expand
-        self.output_text.tag_bind('collapse_button', '<Button-1>', self.toggle_reasoning_bubble)
+        self.output_text._textbox.tag_bind('collapse_button', '<Button-1>', self.toggle_reasoning_bubble)
         
         # Make output read-only
         self.output_text.configure(state='disabled')
@@ -678,10 +544,10 @@ class RatGUI(tk.Tk):
     def toggle_reasoning_bubble(self, event):
         """Toggle the visibility of a reasoning bubble's content"""
         # Get the index of the clicked position
-        clicked_index = self.output_text.index(f"@{event.x},{event.y}")
+        clicked_index = self.output_text._textbox.index(f"@{event.x},{event.y}")
         
         # Find all tags at this position
-        tags = self.output_text.tag_names(clicked_index)
+        tags = self.output_text._textbox.tag_names(clicked_index)
         
         for tag in tags:
             if tag.startswith('bubble_header_'):
@@ -694,21 +560,21 @@ class RatGUI(tk.Tk):
                 self.collapsed_bubbles[bubble_id] = is_collapsed
                 
                 # Get the entire header text
-                header_start = self.output_text.index(f"{tag}.first")
-                header_end = self.output_text.index(f"{tag}.last")
-                header_text = self.output_text.get(header_start, header_end)
+                header_start = self.output_text._textbox.index(f"{tag}.first")
+                header_end = self.output_text._textbox.index(f"{tag}.last")
+                header_text = self.output_text._textbox.get(header_start, header_end)
                 
                 # Replace the arrow emoji
                 new_header = header_text.replace("▼", "▶") if is_collapsed else header_text.replace("▶", "▼")
-                self.output_text.delete(header_start, header_end)
-                self.output_text.insert(header_start, new_header, tag)
+                self.output_text._textbox.delete(header_start, header_end)
+                self.output_text._textbox.insert(header_start, new_header, tag)
                 
                 # Toggle content visibility
                 content_tag = f'bubble_content_{bubble_id}'
                 if is_collapsed:
-                    self.output_text.tag_config(content_tag, elide=True)
+                    self.output_text._textbox.tag_config(content_tag, elide=True)
                 else:
-                    self.output_text.tag_config(content_tag, elide=False)
+                    self.output_text._textbox.tag_config(content_tag, elide=False)
                 
                 self.output_text.configure(state='disabled')
                 break
@@ -718,7 +584,7 @@ class RatGUI(tk.Tk):
         self.output_text.configure(state='normal')
         
         # Add newline before bubble
-        self.output_text.insert(tk.END, "\n")
+        self.output_text._textbox.insert(tk.END, "\n")
         
         # Check if this is a reasoning bubble
         is_reasoning = tag == 'reasoning_bubble'
@@ -735,60 +601,88 @@ class RatGUI(tk.Tk):
                 header = self.format_bubble_header(model_name, tokens, time_taken, bubble_id, is_reasoning)
                 
                 # Insert header and make it clickable
-                self.output_text.insert(tk.END, header + "\n", (header_tag, 'clickable_header'))
+                self.output_text._textbox.insert(tk.END, header + "\n", (header_tag, 'clickable_header'))
                 
                 # Bind click event to the header
-                self.output_text.tag_bind(header_tag, '<Button-1>', self.toggle_reasoning_bubble)
+                self.output_text._textbox.tag_bind(header_tag, '<Button-1>', self.toggle_reasoning_bubble)
             else:
                 header = self.format_bubble_header(model_name, tokens, time_taken)
-                self.output_text.insert(tk.END, header + "\n", 'bubble_header')
+                self.output_text._textbox.insert(tk.END, header + "\n", 'bubble_header')
         
         # Add the main content in a bubble
         content_tag = f'bubble_content_{bubble_id}' if bubble_id is not None else tag
-        self.output_text.insert(tk.END, content + "\n", (content_tag, tag))
+        self.output_text._textbox.insert(tk.END, content + "\n", (content_tag, tag))
         
         # Set initial state for reasoning bubbles (collapsed by default)
         if is_reasoning:
             self.collapsed_bubbles[bubble_id] = True
-            self.output_text.tag_config(content_tag, elide=True)
+            self.output_text._textbox.tag_config(content_tag, elide=True)
         
         self.output_text.configure(state='disabled')
-        self.output_text.see(tk.END)
+        self.output_text._textbox.see(tk.END)
         self.update_idletasks()
 
     def create_input_area(self, parent):
         """Create the input area with entry and submit button"""
-        input_frame = ttk.Frame(parent, style="Custom.TFrame")
-        input_frame.pack(fill=tk.X)
+        # Main input frame
+        input_frame = customtkinter.CTkFrame(parent)
+        input_frame.pack(side=tk.BOTTOM, fill=tk.X, padx=10, pady=5)
         
-        # Input entry with modern styling
-        self.input_entry = ttk.Entry(
+        # Create and configure the input text widget
+        self.input_text = customtkinter.CTkTextbox(
             input_frame,
-            font=('Consolas', 12),
-            style="Custom.TEntry"
+            width=1000,
+            height=100,
+            wrap=tk.WORD,
+            text_color="white",
+            corner_radius=5,
+            fg_color="#363636"
         )
-        self.input_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
-        self.input_entry.bind("<Return>", self.process_input)
+        self.input_text.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
         
-        # Submit button
-        submit_btn = ttk.Button(
-            input_frame,
+        # Bind Return key to process input
+        self.input_text._textbox.bind('<Return>', lambda e: self.process_input())
+        
+        # Button frame for Send and Clear buttons
+        button_frame = customtkinter.CTkFrame(input_frame)
+        button_frame.pack(side=tk.RIGHT, fill=tk.Y)
+        
+        # Send button with hover effects
+        self.send_button = customtkinter.CTkButton(
+            button_frame,
             text="Send",
-            command=lambda: self.process_input(None),
-            style="Custom.TButton"
+            command=self.process_input,
+            fg_color="#2b2b2b",
+            hover_color="#404040",
+            corner_radius=5,
+            border_width=1,
+            border_color="#404040"
         )
-        submit_btn.pack(side=tk.LEFT)
+        self.send_button.pack(side=tk.TOP, pady=(0, 5))
+        
+        # Clear button with hover effects
+        self.clear_button = customtkinter.CTkButton(
+            button_frame,
+            text="Clear",
+            command=self.clear_output,
+            fg_color="#2b2b2b",
+            hover_color="#404040",
+            corner_radius=5,
+            border_width=1,
+            border_color="#404040"
+        )
+        self.clear_button.pack(side=tk.TOP)
 
     def process_input(self, event=None):
         """Handle user input submission"""
         if self.running:
             return
             
-        user_input = self.input_entry.get().strip()
+        user_input = self.input_text.get("1.0", tk.END).strip()
         if not user_input:
             return
             
-        self.input_entry.delete(0, tk.END)
+        self.input_text.delete("1.0", tk.END)
         self.append_bubble(
             f"You: {user_input}",
             'user_bubble'
@@ -817,21 +711,20 @@ class RatGUI(tk.Tk):
             for result in async_gen:
                 if result["type"] == "reasoning":
                     reasoning_content = result["response"]  # This is already clean, between-tags content
-                    if self.model_chain.show_reasoning:
-                        self.append_bubble(
-                            reasoning_content,  # Show only the clean content
-                            'reasoning_bubble',
-                            self.model_chain.current_reasoning_model,
-                            len(reasoning_content.split()),
-                            time.time() - reasoning_start
-                        )
-                        # Log only the clean content
-                        self.log_conversation(
-                            reasoning_content, 
-                            "assistant",
-                            self.model_chain.current_reasoning_model,
-                            prompt=result["prompt"]
-                        )
+                    self.append_bubble(
+                        reasoning_content,  # Show only the clean content
+                        'reasoning_bubble',
+                        self.model_chain.current_reasoning_model,
+                        len(reasoning_content.split()),
+                        time.time() - reasoning_start
+                    )
+                    # Log only the clean content
+                    self.log_conversation(
+                        reasoning_content, 
+                        "assistant",
+                        self.model_chain.current_reasoning_model,
+                        prompt=result["prompt"]
+                    )
                 elif result["type"] == "error":
                     self.append_bubble(result["response"], "error")
                     self.log_conversation(
@@ -886,58 +779,111 @@ class RatGUI(tk.Tk):
 
     def change_reasoning_model(self, model_name):
         """Handle reasoning model change"""
-        if model_name in MODELS["reasoning"]:
-            if self.model_chain.set_model(model_name):
-                self.append_bubble(
-                    f"\nReasoning model changed to: {MODELS['reasoning'][model_name]['name']}\n",
-                    'metadata'
-                )
-            else:
-                messagebox.showerror("Error", "Invalid reasoning model selection")
-                self.reasoning_var.set(DEFAULT_REASONING_MODEL)
-
-    def change_base_model(self, model_name):
-        """Handle base model change"""
-        if model_name in MODELS["base"]:
-            if self.model_chain.set_model(model_name):
-                self.append_bubble(
-                    f"\nBase model changed to: {MODELS['base'][model_name]['name']}\n",
-                    'metadata'
-                )
-            else:
-                messagebox.showerror("Error", "Invalid base model selection")
-                self.base_var.set(DEFAULT_BASE_MODEL)
-
-    def change_format(self, format_name):
-        """Handle format change"""
-        if self.model_chain.set_reasoning_format(format_name):
+        if self.model_chain.set_reasoning_model(model_name):
             self.append_bubble(
-                f"\nFormat changed to: {format_name}\n",
+                f"Switched reasoning model to: {MODELS['reasoning'][model_name]['name']}",
                 'metadata'
             )
         else:
-            messagebox.showerror("Error", "Invalid format selection")
+            self.show_error("Invalid reasoning model selection")
+            self.reasoning_var.set(DEFAULT_REASONING_MODEL)
 
-    def toggle_reasoning(self):
-        """Toggle reasoning visibility"""
-        self.model_chain.show_reasoning = self.reasoning_visibility_var.get()
-        status = "visible" if self.model_chain.show_reasoning else "hidden"
-        self.append_bubble(
-            f"\nReasoning {status}\n",
-            'metadata'
-        )
+    def change_base_model(self, model_name):
+        """Handle base model change"""
+        if self.model_chain.set_base_model(model_name):
+            self.append_bubble(
+                f"Switched base model to: {MODELS['base'][model_name]['name']}",
+                'metadata'
+            )
+        else:
+            self.show_error("Invalid base model selection")
+            self.base_var.set(DEFAULT_BASE_MODEL)
 
     def clear_output(self):
         """Clear the output display"""
         self.output_text.configure(state='normal')
-        self.output_text.delete(1.0, tk.END)
+        self.output_text._textbox.delete(1.0, tk.END)
         self.output_text.configure(state='disabled')
         self.model_chain.messages = []
 
+    def show_error(self, message):
+        """Show an error message in a CustomTkinter dialog"""
+        dialog = customtkinter.CTkToplevel(self)
+        dialog.title("Error")
+        dialog.geometry("400x150")
+        
+        # Make dialog modal
+        dialog.transient(self)
+        dialog.grab_set()
+        
+        # Center the dialog
+        dialog.update_idletasks()
+        x = self.winfo_x() + (self.winfo_width() - dialog.winfo_width()) // 2
+        y = self.winfo_y() + (self.winfo_height() - dialog.winfo_height()) // 2
+        dialog.geometry(f"+{x}+{y}")
+        
+        # Add error message
+        label = customtkinter.CTkLabel(
+            dialog,
+            text=message,
+            text_color="white",
+            wraplength=350
+        )
+        label.pack(pady=20)
+        
+        # Add OK button
+        button = customtkinter.CTkButton(
+            dialog,
+            text="OK",
+            command=dialog.destroy,
+            fg_color="#2b2b2b",
+            hover_color="#404040"
+        )
+        button.pack(pady=10)
+
+    def save_api_key(self):
+        """Save the API key to both environment and .env file"""
+        api_key = self.api_key_var.get().strip()
+        
+        if not api_key:
+            self.show_error("Please enter a valid API key")
+            return
+        
+        # Update environment variable
+        os.environ["GROQ_API_KEY"] = api_key
+        
+        # Update .env file
+        env_path = os.path.join(os.path.dirname(__file__), '.env')
+        env_content = ""
+        
+        # Read existing content if file exists
+        if os.path.exists(env_path):
+            with open(env_path, 'r') as f:
+                lines = f.readlines()
+                for line in lines:
+                    if not line.startswith('GROQ_API_KEY='):
+                        env_content += line
+        
+        # Add new API key
+        env_content += f"\nGROQ_API_KEY={api_key}\n"
+        
+        # Write back to .env file
+        with open(env_path, 'w') as f:
+            f.write(env_content.strip())
+        
+        # Update the Groq client
+        self.model_chain.groq_client = Groq(api_key=api_key)
+        
+        # Show success message in chat
+        self.append_bubble(
+            "Groq API key has been updated and saved",
+            'metadata'
+        )
+
     def on_closing(self):
         """Handle window closing"""
-        if messagebox.askokcancel("Quit", "Do you want to quit?"):
-            self.quit()
+        self.running = False
+        self.destroy()
 
 if __name__ == "__main__":
     # Load environment variables
