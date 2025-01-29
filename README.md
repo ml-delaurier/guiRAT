@@ -30,9 +30,7 @@ This approach ensures more thoughtful, contextually aware, and reliable response
 • A .env file containing:
   ```plaintext
   DEEPSEEK_API_KEY=your_deepseek_api_key_here
-  OPENROUTER_API_KEY=your_openrouter_api_key_here
-  optional
-  ANTHROPIC_API_KEY=your_anthropic_api_key_here
+  GROQ_API_KEY=your_groq_api_key_here
   ```
 
 ## 🚀 Installation
@@ -57,9 +55,7 @@ This will install RAT as a command-line tool, allowing you to run it from anywhe
 1. Ensure your .env file is configured with:
    ```plaintext
    DEEPSEEK_API_KEY=your_deepseek_api_key_here
-   OPENROUTER_API_KEY=your_openrouter_api_key_here
-   optional
-   ANTHROPIC_API_KEY=your_anthropic_api_key_here 
+   GROQ_API_KEY=your_groq_api_key_here
    ```
 
 2. Run RAT from anywhere:
@@ -117,4 +113,3 @@ GitHub: https://github.com/yourusername/rat
 ## Star History
 
 [![Star History Chart](https://api.star-history.com/svg?repos=Doriandarko/RAT-retrieval-augmented-thinking&type=Date)](https://star-history.com/#Doriandarko/RAT-retrieval-augmented-thinking&Date)
-
