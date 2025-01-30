@@ -17,7 +17,7 @@ import re
 
 # Set appearance mode and default color theme
 customtkinter.set_appearance_mode("dark")  # Modes: system (default), light, dark
-customtkinter.set_default_color_theme("blue")  # Themes: blue (default), dark-blue, green
+customtkinter.set_default_color_theme("dark-green")  # Themes: blue (default), dark-blue, green
 
 # Model Constants
 REASONING_MODEL = "deepseek-r1-distill-llama-70b"
@@ -383,12 +383,17 @@ class RatGUI(customtkinter.CTk):
         self.title("guiRAT - Retrieval Augmented Thinking")
         self.geometry("1200x800")
         
+        # Set window icon if available
+        icon_path = os.path.join(os.path.dirname(__file__), "assets", "icon.ico")
+        if os.path.exists(icon_path):
+            self.iconbitmap(icon_path)
+        
         # Initialize model chain and state
         self.model_chain = ModelChain()
         self.running = False
         
         # Initialize logging
-        self.log_file = "conversation_full.txt"
+        self.log_file = "conversation_logs.txt"
         self.setup_logging()
         
         # Create GUI components
@@ -400,7 +405,7 @@ class RatGUI(customtkinter.CTk):
     def setup_logging(self):
         """
         Set up the conversation logging system.
-        Creates or appends to conversation_full.txt with a session start marker.
+        Creates or appends to conversation_logs.txt with a session start marker.
         """
         with open(self.log_file, 'a', encoding='utf-8') as f:
             f.write(f"\n{'='*50}\n")
@@ -788,7 +793,8 @@ class RatGUI(customtkinter.CTk):
             hover_color="#404040",
             corner_radius=5,
             border_width=1,
-            border_color="#404040"
+            border_color="#404040",
+            width=50
         )
         self.send_button.pack(side=tk.TOP, pady=(0, 5))
         
