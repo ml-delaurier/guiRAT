@@ -2,6 +2,8 @@
 
 guiRAT is a GUI fork of the original RAT project. Maintaining the core concept of two-stage reasoning, it adds a user-friendly interface and integrates Groq.
 
+> The original RAT concept was developed by skirano, as detailed in this [Twitter thread](https://x.com/skirano/status/1881922469411643413).
+
 ![guiRAT Interface](assets/guiRAT-0.webp)
 
 *because DeepSeek API is down...*
@@ -11,7 +13,7 @@ will be avaliable ASAP.
 > Currently using `groq-r1-distill-llama-70b` for the response stage.
 
 
-> The original RAT concept was developed by skirano, as detailed in this [Twitter thread](https://x.com/skirano/status/1881922469411643413).
+
 
 
 
