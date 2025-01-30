@@ -2,7 +2,7 @@
 
 guiRAT is a GUI fork of the original RAT project. Maintaining the core concept of two-stage reasoning, it adds a user-friendly interface and integrates Groq.
 
-![guiRAT Interface](assets/guiRAT.webp)
+![guiRAT Interface](assets/guiRAT-0.webp)
 
 *because DeepSeek API is down...*
 > *DeepSeek-R1 `deepseek-reasoner`
@@ -19,7 +19,7 @@ will be avaliable ASAP.
 
 1. Magic
 
-![Reasoning Stage](assets/guiRAT-001.webp)
+![Reasoning Stage](assets/guiRAT-1.webp)
 
 
 ## 🎯 Features
@@ -27,7 +27,7 @@ will be avaliable ASAP.
 - 🌓 **Dark Mode**: No other choice
 
 
-![Features Overview](assets/guiRAT-002.webp)
+![Features Overview](assets/guiRAT-2.webp)
 
 ## ⚙️ Requirements
 
@@ -61,7 +61,7 @@ will be avaliable ASAP.
    ```
 ---
 
-![Usage Example](assets/guiRAT-003.webp)
+![Usage Example](assets/guiRAT-3.webp)
 ---
 
 ## Default Configuration
