@@ -1,4 +1,4 @@
-# 🧠 guiRAT (Graphical Retrieval Augmented Thinking)
+# 🧠 guiRAT 🐀 (Graphical Retrieval Augmented Thinking)
 
 guiRAT is a GUI fork of the original RAT project. Maintaining the core concept of two-stage reasoning, it adds a user-friendly interface and integrates Groq.
 
