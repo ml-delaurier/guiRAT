@@ -24,42 +24,174 @@ REASONING_MODEL = "deepseek-r1-distill-llama-70b"
 
 # Model Configurations
 MODELS = {
-    # Reasoning Model
+    # All models available for both reasoning and base roles
     "reasoning": {
         "deepseek-r1-distill-llama-70b": {
             "name": "DeepSeek R1 Distill 70B",
             "type": "reasoning",
             "description": "Specialized model for generating detailed reasoning",
+            "context_length": 128000
+        },
+        "gemma2-9b-it": {
+            "name": "Gemma 2 9B IT",
+            "type": "reasoning",
+            "description": "Google's instruction-tuned 9B parameter model",
             "context_length": 8192
+        },
+        "llama-3.3-70b-versatile": {
+            "name": "Llama 3.3 70B Versatile",
+            "type": "reasoning",
+            "description": "Meta's versatile large language model with extended context",
+            "context_length": 128000
+        },
+        "llama-3.1-8b-instant": {
+            "name": "Llama 3.1 8B Instant",
+            "type": "reasoning",
+            "description": "Fast and efficient 8B parameter model with extended context",
+            "context_length": 128000
+        },
+        "llama-guard-3-8b": {
+            "name": "Llama Guard 3 8B",
+            "type": "reasoning",
+            "description": "Meta's safety-focused model with 8B parameters",
+            "context_length": 8192
+        },
+        "llama3-70b-8192": {
+            "name": "Llama 3 70B",
+            "type": "reasoning",
+            "description": "Meta's powerful 70B parameter model",
+            "context_length": 8192
+        },
+        "llama3-8b-8192": {
+            "name": "Llama 3 8B",
+            "type": "reasoning",
+            "description": "Efficient 8B parameter model for general use",
+            "context_length": 8192
+        },
+        "mixtral-8x7b-32768": {
+            "name": "Mixtral 8x7B",
+            "type": "reasoning",
+            "description": "Mistral's mixture of experts model with extended context",
+            "context_length": 32768
+        },
+        "llama-3.3-70b-specdec": {
+            "name": "Llama 3.3 70B SpecDec",
+            "type": "reasoning",
+            "description": "Meta's specialized decoder variant of the 70B model",
+            "context_length": 8192
+        },
+        "llama-3.2-1b-preview": {
+            "name": "Llama 3.2 1B Preview",
+            "type": "reasoning",
+            "description": "Lightweight preview model with extended context",
+            "context_length": 128000
+        },
+        "llama-3.2-3b-preview": {
+            "name": "Llama 3.2 3B Preview",
+            "type": "reasoning",
+            "description": "Medium-sized preview model with extended context",
+            "context_length": 128000
+        },
+        "llama-3.2-11b-vision-preview": {
+            "name": "Llama 3.2 11B Vision Preview",
+            "type": "reasoning",
+            "description": "Vision-capable preview model with extended context",
+            "context_length": 128000
+        },
+        "llama-3.2-90b-vision-preview": {
+            "name": "Llama 3.2 90B Vision Preview",
+            "type": "reasoning",
+            "description": "Large vision-capable preview model with extended context",
+            "context_length": 128000
         }
     },
     
-    # Base Models
+    # Base Models - same models available here
     "base": {
+        "deepseek-r1-distill-llama-70b": {
+            "name": "DeepSeek R1 Distill 70B",
+            "type": "base",
+            "description": "Specialized model for generating detailed reasoning",
+            "context_length": 128000
+        },
+        "gemma2-9b-it": {
+            "name": "Gemma 2 9B IT",
+            "type": "base",
+            "description": "Google's instruction-tuned 9B parameter model",
+            "context_length": 8192
+        },
+        "llama-3.3-70b-versatile": {
+            "name": "Llama 3.3 70B Versatile",
+            "type": "base",
+            "description": "Meta's versatile large language model with extended context",
+            "context_length": 128000
+        },
+        "llama-3.1-8b-instant": {
+            "name": "Llama 3.1 8B Instant",
+            "type": "base",
+            "description": "Fast and efficient 8B parameter model with extended context",
+            "context_length": 128000
+        },
+        "llama-guard-3-8b": {
+            "name": "Llama Guard 3 8B",
+            "type": "base",
+            "description": "Meta's safety-focused model with 8B parameters",
+            "context_length": 8192
+        },
+        "llama3-70b-8192": {
+            "name": "Llama 3 70B",
+            "type": "base",
+            "description": "Meta's powerful 70B parameter model",
+            "context_length": 8192
+        },
+        "llama3-8b-8192": {
+            "name": "Llama 3 8B",
+            "type": "base",
+            "description": "Efficient 8B parameter model for general use",
+            "context_length": 8192
+        },
+        "mixtral-8x7b-32768": {
+            "name": "Mixtral 8x7B",
+            "type": "base",
+            "description": "Mistral's mixture of experts model with extended context",
+            "context_length": 32768
+        },
         "llama-3.3-70b-specdec": {
             "name": "Llama 3.3 70B SpecDec",
             "type": "base",
-            "description": "Meta's Llama model optimized for specialized tasks",
+            "description": "Meta's specialized decoder variant of the 70B model",
             "context_length": 8192
         },
         "llama-3.2-1b-preview": {
             "name": "Llama 3.2 1B Preview",
             "type": "base",
-            "description": "Lightweight preview model with 128k context window",
-            "context_length": 8192
+            "description": "Lightweight preview model with extended context",
+            "context_length": 128000
         },
         "llama-3.2-3b-preview": {
             "name": "Llama 3.2 3B Preview",
             "type": "base",
-            "description": "Medium-sized preview model with 128k context window",
-            "context_length": 8192
+            "description": "Medium-sized preview model with extended context",
+            "context_length": 128000
+        },
+        "llama-3.2-11b-vision-preview": {
+            "name": "Llama 3.2 11B Vision Preview",
+            "type": "base",
+            "description": "Vision-capable preview model with extended context",
+            "context_length": 128000
+        },
+        "llama-3.2-90b-vision-preview": {
+            "name": "Llama 3.2 90B Vision Preview",
+            "type": "base",
+            "description": "Large vision-capable preview model with extended context",
+            "context_length": 128000
         }
     }
 }
 
 # Default Models
 DEFAULT_REASONING_MODEL = "deepseek-r1-distill-llama-70b"
-DEFAULT_BASE_MODEL = "llama-3.3-70b-specdec"
+DEFAULT_BASE_MODEL = "llama-3.3-70b-versatile"
 
 class ModelChain:
     """
