@@ -1,6 +1,6 @@
 # 🧠 guiRAT (Graphical Retrieval Augmented Thinking)
 
-guiRAT is a GUI fork of the original RAT project. While maintaining the core concept of two-stage reasoning, it adds a user-friendly interface built with CustomTkinter and integrates Groq's powerful language models for enhanced performance
+guiRAT is a GUI fork of the original RAT project. Maintaining the core concept of two-stage reasoning, it adds a user-friendly interface and integrates Groq.
 
 ![guiRAT Interface](assets/guiRAT.webp)
 
@@ -10,38 +10,22 @@ will be avaliable ASAP.
 
 > Currently using `groq-r1-distill-llama-70b` for the response stage.
 
-> Base models include:
-   ```plaintext
-   llama-3.3-70b-specdec
-   llama-3.2-1b-preview
-   llama-3.2-3b-preview
-   llama-3.2-11b-vision
-   llama-3.2-90b-vision-instruct
-   ```
 
-The original RAT concept was developed by skirano, as detailed in this [Twitter thread](https://x.com/skirano/status/1881922469411643413).
+> The original RAT concept was developed by skirano, as detailed in this [Twitter thread](https://x.com/skirano/status/1881922469411643413).
 
 
 
 ## How It Works
 
-guiRAT employs a two-stage approach with a modern GUI interface:
-1. **Reasoning Stage** (DeepSeek): Generates detailed reasoning and analysis for each query
-2. **Response Stage** (Groq): Utilizes the reasoning context to provide informed, well-structured answers
-3. **Interface**: Modern dark-themed GUI with conversation bubbles, model selection, and real-time responses
+1. Magic
 
 ![Reasoning Stage](assets/guiRAT-001.webp)
 
-This approach ensures more thoughtful, contextually aware, and reliable responses while providing an intuitive user experience.
 
 ## 🎯 Features
 
-- 🖥️ **Modern GUI Interface**: Built with CustomTkinter for a sleek, user-friendly experience
-- 🤖 **Groq Integration**: High-performance language model responses
-- 🧠 **Reasoning Visibility**: Toggle visibility of the AI's thinking process
-- 🌓 **Dark Mode**: Comfortable dark theme for extended use
-- 💬 **Conversation History**: Maintains and displays full conversation context
-- 🔄 **Real-time Updates**: Stream responses as they're generated
+- 🌓 **Dark Mode**: No other choice
+
 
 ![Features Overview](assets/guiRAT-002.webp)
 
@@ -49,20 +33,22 @@ This approach ensures more thoughtful, contextually aware, and reliable response
 
 • Python 3.11 or higher  
 • A .env file containing:
+
   ```plaintext
-  DEEPSEEK_API_KEY=your_deepseek_api_key_here
   GROQ_API_KEY=your_groq_api_key_here
   ```
 
 ## 🚀 Installation
 
 1. Clone the repository:
+
    ```bash
    git clone https://github.com/ml-delaurier/guiRAT.git
    cd guiRAT
    ```
 
 2. Install dependencies:
+
    ```bash
    pip install -e .
    ```
@@ -71,16 +57,11 @@ This approach ensures more thoughtful, contextually aware, and reliable response
 
 1. Ensure your .env file is configured with the required API keys
 2. Launch the GUI application:
+
    ```bash
    python rat_gui.py
    ```
 
-3. Features available in the GUI:
-   - Type your questions in the input field
-   - Select different models from the dropdown menus
-   - Toggle reasoning visibility
-   - Clear conversation history
-   - Dark mode interface for comfortable use
 
 ---
 
