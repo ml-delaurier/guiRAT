@@ -53,16 +53,12 @@ will be avaliable ASAP.
    pip install -e .
    ```
 
-## 📖 Usage
-
 1. Ensure your .env file is configured with the required API keys
 2. Launch the GUI application:
 
    ```bash
    python rat_gui.py
    ```
-
-
 ---
 
 ![Usage Example](assets/guiRAT-003.webp)
